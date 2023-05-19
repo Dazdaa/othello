@@ -7,8 +7,12 @@
 # Your Own Computer Games with Python", chapter 15:
 #   http://inventwithpython.com/chapter15.html
 
-import random, sys, pygame, time, copy
+import random, sys, pygame, time
 from pygame.locals import *
+from simple_agents import getDynamicRoxanneMovev3, getRoxanneMove
+from board_functions import *
+from minimax import minimaxMove, evaluation3
+from mcts import MCTS
 
 FPS = 10 # frames per second to update the screen
 WINDOWWIDTH = 640 # width of the program's window, in pixels
@@ -161,7 +165,8 @@ def runGame():
                 pygame.display.update()
 
             # Make the move and end the turn.
-            x, y = getComputerMove(mainBoard, computerTile)
+            opponent = getOpponent()
+            x, y = getOpponentMove(opponent, mainBoard, computerTile)
             makeMove(mainBoard, computerTile, x, y, True)
             if getValidMoves(mainBoard, playerTile) != []:
                 # Only set for the player's turn if they can make a move.
@@ -218,6 +223,40 @@ def runGame():
         pygame.display.update()
         MAINCLOCK.tick(FPS)
 
+def getOpponent():
+    '''
+    Identifies the opponent from the command line arguments.
+    '''
+    if len(sys.argv) == 1: # no opponent specified; use default getComputerMove
+        opponent = 'getComputerMove'
+        return opponent
+    elif len(sys.argv) == 2: # opponent is a simple agent
+        opponent = sys.argv[1]
+        return opponent
+    elif sys.argv[1].lower() == 'minimax':
+        opponentDetails = sys.argv[1:]
+        return opponentDetails
+    elif sys.argv[1].lower() == 'mcts':
+        opponentDetails = sys.argv[1:]
+        return opponentDetails
+    
+def getOpponentMove(opponent, board, tile):
+    '''
+    Gets the opponent move given the opponent.
+    '''
+    # the dirty code goes here
+    if opponent == 'getComputerMove':
+        return getComputerMove(board, tile)
+    elif opponent == 'Roxanne3':
+        return getDynamicRoxanneMovev3(board, tile)
+    elif opponent == 'Roxanne':
+        return getRoxanneMove(board, tile)
+    elif opponent[0] == 'minimax':
+        return minimaxMove(board, int(opponent[1]), tile, alpha=float("-inf"), beta=float("inf"), evaluation=evaluation3)
+    elif opponent[0] == 'mcts':
+        return MCTS(board, tile, int(opponent[1]))
+    else:
+        raise Exception("Invalid opponent chosen. Choose opponent from the following list: '' (ComputerMove), 'Roxanne3', 'Roxanne', 'minimax', 'mcts'. Type the opponent as a command line argument. When using 'minimax', specify the depth as the next command line argument. When using 'mcts' specify the number of simulations as the next command line argument. E.g. py main.py minimax 1")
 
 def translateBoardToPixelCoord(x, y):
     return XMARGIN + x * SPACESIZE + int(SPACESIZE / 2), YMARGIN + y * SPACESIZE + int(SPACESIZE / 2)
@@ -308,116 +347,6 @@ def drawInfo(board, playerTile, computerTile, turn):
     scoreRect.bottomleft = (10, WINDOWHEIGHT - 5)
     DISPLAYSURF.blit(scoreSurf, scoreRect)
 
-
-def resetBoard(board):
-    # Blanks out the board it is passed, and sets up starting tiles.
-    for x in range(BOARDWIDTH):
-        for y in range(BOARDHEIGHT):
-            board[x][y] = EMPTY_SPACE
-
-    # Add starting pieces to the center
-    board[3][3] = WHITE_TILE
-    board[3][4] = BLACK_TILE
-    board[4][3] = BLACK_TILE
-    board[4][4] = WHITE_TILE
-
-
-def getNewBoard():
-    # Creates a brand new, empty board data structure.
-    board = []
-    for i in range(BOARDWIDTH):
-        board.append([EMPTY_SPACE] * BOARDHEIGHT)
-
-    return board
-
-
-def isValidMove(board, tile, xstart, ystart):
-    # Returns False if the player's move is invalid. If it is a valid
-    # move, returns a list of spaces of the captured pieces.
-    if board[xstart][ystart] != EMPTY_SPACE or not isOnBoard(xstart, ystart):
-        return False
-
-    board[xstart][ystart] = tile # temporarily set the tile on the board.
-
-    if tile == WHITE_TILE:
-        otherTile = BLACK_TILE
-    else:
-        otherTile = WHITE_TILE
-
-    tilesToFlip = []
-    # check each of the eight directions:
-    for xdirection, ydirection in [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]]:
-        x, y = xstart, ystart
-        x += xdirection
-        y += ydirection
-        if isOnBoard(x, y) and board[x][y] == otherTile:
-            # The piece belongs to the other player next to our piece.
-            x += xdirection
-            y += ydirection
-            if not isOnBoard(x, y):
-                continue
-            while board[x][y] == otherTile:
-                x += xdirection
-                y += ydirection
-                if not isOnBoard(x, y):
-                    break # break out of while loop, continue in for loop
-            if not isOnBoard(x, y):
-                continue
-            if board[x][y] == tile:
-                # There are pieces to flip over. Go in the reverse
-                # direction until we reach the original space, noting all
-                # the tiles along the way.
-                while True:
-                    x -= xdirection
-                    y -= ydirection
-                    if x == xstart and y == ystart:
-                        break
-                    tilesToFlip.append([x, y])
-
-    board[xstart][ystart] = EMPTY_SPACE # make space empty
-    if len(tilesToFlip) == 0: # If no tiles flipped, this move is invalid
-        return False
-    return tilesToFlip
-
-
-def isOnBoard(x, y):
-    # Returns True if the coordinates are located on the board.
-    return x >= 0 and x < BOARDWIDTH and y >= 0 and y < BOARDHEIGHT
-
-
-def getBoardWithValidMoves(board, tile):
-    # Returns a new board with hint markings.
-    dupeBoard = copy.deepcopy(board)
-
-    for x, y in getValidMoves(dupeBoard, tile):
-        dupeBoard[x][y] = HINT_TILE
-    return dupeBoard
-
-
-def getValidMoves(board, tile):
-    # Returns a list of (x,y) tuples of all valid moves.
-    validMoves = []
-
-    for x in range(BOARDWIDTH):
-        for y in range(BOARDHEIGHT):
-            if isValidMove(board, tile, x, y) != False:
-                validMoves.append((x, y))
-    return validMoves
-
-
-def getScoreOfBoard(board):
-    # Determine the score by counting the tiles.
-    xscore = 0
-    oscore = 0
-    for x in range(BOARDWIDTH):
-        for y in range(BOARDHEIGHT):
-            if board[x][y] == WHITE_TILE:
-                xscore += 1
-            if board[x][y] == BLACK_TILE:
-                oscore += 1
-    return {WHITE_TILE:xscore, BLACK_TILE:oscore}
-
-
 def enterPlayerTile():
     # Draws the text and handles the mouse click events for letting
     # the player choose which color they want to be.  Returns
@@ -455,8 +384,7 @@ def enterPlayerTile():
         pygame.display.update()
         MAINCLOCK.tick(FPS)
 
-
-def makeMove(board, tile, xstart, ystart, realMove=False):
+def makeMove(board, tile, xstart, ystart, realMove=False): # Need this function in flippy.py
     # Place the tile on the board at xstart, ystart, and flip tiles
     # Returns False if this is an invalid move, True if it is valid.
     tilesToFlip = isValidMove(board, tile, xstart, ystart)
@@ -472,42 +400,6 @@ def makeMove(board, tile, xstart, ystart, realMove=False):
     for x, y in tilesToFlip:
         board[x][y] = tile
     return True
-
-
-def isOnCorner(x, y):
-    # Returns True if the position is in one of the four corners.
-    return (x == 0 and y == 0) or \
-           (x == BOARDWIDTH and y == 0) or \
-           (x == 0 and y == BOARDHEIGHT) or \
-           (x == BOARDWIDTH and y == BOARDHEIGHT)
-
-
-def getComputerMove(board, computerTile):
-    # Given a board and the computer's tile, determine where to
-    # move and return that move as a [x, y] list.
-    # This agent has the following strategy: Capture a corner if possible. If not, play the move which captures the
-    # most discs. So corner + max disc strat.
-    possibleMoves = getValidMoves(board, computerTile)
-
-    # randomize the order of the possible moves
-    random.shuffle(possibleMoves)
-
-    # always go for a corner if available.
-    for x, y in possibleMoves:
-        if isOnCorner(x, y):
-            return [x, y]
-
-    # Go through all possible moves and remember the best scoring move
-    bestScore = -1
-    for x, y in possibleMoves:
-        dupeBoard = copy.deepcopy(board)
-        makeMove(dupeBoard, computerTile, x, y)
-        score = getScoreOfBoard(dupeBoard)[computerTile]
-        if score > bestScore:
-            bestMove = [x, y]
-            bestScore = score
-    return bestMove
-
 
 def checkForQuit():
     for event in pygame.event.get((QUIT, KEYUP)): # event handling loop

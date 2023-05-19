@@ -10,3 +10,5 @@ from flippy import main
 main()
 
 # run by doing py main.py in powershell.
+# Use git in windows VSCode by using WSL terminal.
+# Order of command line arguments: python3 main.py opponent ...

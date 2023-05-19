@@ -1,7 +1,7 @@
-from flippy import getValidMoves, makeMove, getScoreOfBoard
-from minimax import checkGameOver, declareWinner, minimaxMove, minimax, evaluation3
+from board_functions import *
+from minimax import checkGameOver, declareWinner, minimaxMove, evaluation3
 from simple_agents import getRandomComputerMove, getDynamicRoxanneMovev3
-import sys, copy, random, math
+import copy, random, math
 
 WHITE_TILE = 'WHITE_TILE' # an arbitrary but unique value
 BLACK_TILE = 'BLACK_TILE' # an arbitrary but unique value
@@ -160,7 +160,8 @@ def MCTS(board, tile, numSimulations, C=4, playout='DynamicRoxanne3'):
     Takes the current board state as the root node of the game tree and then runs the MCTS algorithm. Returns the best 
     move found.
     """
-    rootNode = Node(board, tile, None, C)
+    copyBoard = copy.deepcopy(board)
+    rootNode = Node(copyBoard, tile, None, C)
     for i in range(numSimulations):
         node = rootNode # Start at the top of the tree each time, traversing down the tree using UCB1.
         while not node.is_end():

@@ -1,5 +1,6 @@
-from flippy import getValidMoves, makeMove, getScoreOfBoard
+#from flippy import getValidMoves, makeMove, getScoreOfBoard
 import random, copy
+from board_functions import *
 
 WHITE_TILE = 'WHITE_TILE' # an arbitrary but unique value
 BLACK_TILE = 'BLACK_TILE' # an arbitrary but unique value

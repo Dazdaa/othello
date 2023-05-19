@@ -1,4 +1,4 @@
-from flippy import getValidMoves, makeMove, getScoreOfBoard
+from board_functions import *
 import sys, copy
 
 WHITE_TILE = 'WHITE_TILE' # an arbitrary but unique value
